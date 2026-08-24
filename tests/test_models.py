@@ -1,6 +1,6 @@
 """Unit tests for event models and RunConfig."""
 
-from agent_streaming_consumer.models import (
+from src.models import (
     AuthorTransfer,
     ClientMode,
     DoneEvent,

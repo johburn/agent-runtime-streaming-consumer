@@ -63,12 +63,13 @@ flowchart TB
    - **Inspector de eventos y telemetría**: Muestra métricas de rendimiento en tiempo real (TTFT — *Time to First Token*, latencia total, conteo de chunks) y log detallado de Server-Sent Events.
    - **Renderizado de eventos enriquecidos**: Visualización diferenciada para llamadas a herramientas (`ToolCall`), resultados de ejecución (`ToolResult`), razonamiento (*Chain-of-Thought* / `ThoughtDelta`) y transferencias multi-agente (`AuthorTransfer`).
 
-2. **Backend API Gateway (`src/agent_streaming_consumer/server.py`)**:
+2. **Backend API Gateway (`src/server.py`)**:
    - Servidor asíncrono con **FastAPI** y **Uvicorn**.
+   - `GET /api/config`: Proporciona la configuración del entorno para la interfaz de usuario.
    - `GET /api/agents`: Descubre y lista automáticamente los Reasoning Engines disponibles en el proyecto y región de GCP.
    - `POST /api/stream`: Orquesta la conexión hacia Vertex AI y emite un flujo SSE enriquecido hacia el navegador.
 
-3. **Núcleo de Consumo y Autenticación (`src/agent_streaming_consumer/`)**:
+3. **Núcleo de Consumo y Autenticación (`src/`)**:
    - `GoogleAuthTokenProvider`: Gestión automática de credenciales mediante *Application Default Credentials* (ADC) y refresco dinámico de tokens OAuth2 (`Bearer`).
    - `AgentRuntimeClient`: Cliente HTTP asíncrono (`httpx`) con soporte de timeouts, streaming y gestión de sesiones multi-turno.
    - `EventStreamParser`: Parser tipado que transforma el flujo de bytes/JSON crudo en eventos estructurados de Pydantic (`TextDelta`, `ToolCall`, `ToolResult`, `ThoughtDelta`, `AuthorTransfer`, `StateDelta`, `DoneEvent`, `ErrorEvent`).
@@ -216,16 +217,15 @@ uv run pytest
 │   └── assets/
 │       └── ui_screenshot.jpg         # Captura de pantalla de la interfaz
 ├── src/
-│   └── agent_streaming_consumer/
-│       ├── __init__.py               # Exportaciones principales del módulo
-│       ├── auth.py                   # Proveedor de tokens OAuth2 / ADC
-│       ├── cli.py                    # Interfaz de línea de comandos (CLI)
-│       ├── client.py                 # Cliente AgentRuntimeClient
-│       ├── config.py                 # Configuración validada con Pydantic Settings
-│       ├── formatting.py             # Formateadores de texto y consola Rich
-│       ├── models.py                 # Modelos tipados de eventos SSE
-│       ├── server.py                 # Endpoints FastAPI y generador de stream
-│       └── sse_parser.py             # Decodificador de Server-Sent Events
+│   ├── __init__.py                   # Exportaciones principales del módulo
+│   ├── auth.py                       # Proveedor de tokens OAuth2 / ADC
+│   ├── cli.py                        # Interfaz de línea de comandos (CLI)
+│   ├── client.py                     # Cliente AgentRuntimeClient
+│   ├── config.py                     # Configuración validada con Pydantic Settings
+│   ├── formatting.py                 # Formateadores de texto y consola Rich
+│   ├── models.py                     # Modelos tipados de eventos SSE
+│   ├── server.py                     # Endpoints FastAPI y generador de stream
+│   └── sse_parser.py                 # Decodificador de Server-Sent Events
 ├── static/
 │   └── index.html                    # Frontend SPA (Tailwind + SSE Client)
 ├── examples/                         # Scripts de ejemplo de integración

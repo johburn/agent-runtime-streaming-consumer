@@ -1,7 +1,7 @@
 """Unit tests for AgentRuntimeSSEParser."""
 
 import json
-from agent_streaming_consumer.models import (
+from src.models import (
     AuthorTransfer,
     DoneEvent,
     ErrorEvent,
@@ -11,7 +11,7 @@ from agent_streaming_consumer.models import (
     ToolCall,
     ToolResult,
 )
-from agent_streaming_consumer.sse_parser import AgentRuntimeSSEParser
+from src.sse_parser import AgentRuntimeSSEParser
 
 
 def test_parse_simple_text_content():

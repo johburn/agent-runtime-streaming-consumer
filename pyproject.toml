@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent-stream = "agent_streaming_consumer.cli:main"
+agent-stream = "src.cli:main"
 
 [dependency-groups]
 dev = [
@@ -34,4 +34,8 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agent_streaming_consumer"]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "strict"

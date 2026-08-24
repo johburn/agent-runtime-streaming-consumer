@@ -2,7 +2,7 @@
 
 import os
 import uvicorn
-from agent_streaming_consumer.server import app
+from src.server import app
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

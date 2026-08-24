@@ -1,7 +1,7 @@
 """Example: Multi-turn conversation maintaining persistent session state."""
 
 import asyncio
-from agent_streaming_consumer import AgentRuntimeClient, AgentRuntimeConfig, TextDelta
+from src import AgentRuntimeClient, AgentRuntimeConfig, TextDelta
 
 
 async def main():

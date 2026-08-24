@@ -1,7 +1,7 @@
 """Example: Streaming remotely using native Google Cloud Vertex AI SDK."""
 
 import asyncio
-from agent_streaming_consumer import AgentRuntimeClient, AgentRuntimeConfig, ClientMode, TextDelta, ThoughtDelta, ToolCall
+from src import AgentRuntimeClient, AgentRuntimeConfig, ClientMode, TextDelta, ThoughtDelta, ToolCall
 
 
 async def main():

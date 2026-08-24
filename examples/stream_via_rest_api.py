@@ -1,7 +1,7 @@
 """Example: Streaming remotely using direct Google Cloud streamQuery REST URL with SSE."""
 
 import asyncio
-from agent_streaming_consumer import AgentRuntimeClient, AgentRuntimeConfig, ClientMode, TextDelta, ThoughtDelta, ToolCall
+from src import AgentRuntimeClient, AgentRuntimeConfig, ClientMode, TextDelta, ThoughtDelta, ToolCall
 
 
 async def main():

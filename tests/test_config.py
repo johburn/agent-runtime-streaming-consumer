@@ -1,8 +1,8 @@
 """Unit tests for AgentRuntimeConfig."""
 
 import pytest
-from agent_streaming_consumer.config import AgentRuntimeConfig
-from agent_streaming_consumer.models import ClientMode, PayloadFormat, StreamingMode
+from src.config import AgentRuntimeConfig
+from src.models import ClientMode, PayloadFormat, StreamingMode
 
 
 def test_config_defaults():

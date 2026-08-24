@@ -1,7 +1,7 @@
 """Example: Detailed handling of distinct SSE event types."""
 
 import asyncio
-from agent_streaming_consumer import (
+from src import (
     AgentRuntimeClient,
     AgentRuntimeConfig,
     AuthorTransfer,

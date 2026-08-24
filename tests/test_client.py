@@ -5,10 +5,10 @@ import pytest
 import respx
 from httpx import Response
 
-from agent_streaming_consumer.auth import GoogleAuthTokenProvider
-from agent_streaming_consumer.client import AgentRuntimeClient
-from agent_streaming_consumer.config import AgentRuntimeConfig
-from agent_streaming_consumer.models import ClientMode, DoneEvent, TextDelta
+from src.auth import GoogleAuthTokenProvider
+from src.client import AgentRuntimeClient
+from src.config import AgentRuntimeConfig
+from src.models import ClientMode, DoneEvent, TextDelta
 
 
 @pytest.fixture
