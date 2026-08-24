@@ -32,10 +32,11 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-# Default Google Cloud settings
-DEFAULT_PROJECT_ID = "938422762731"
-DEFAULT_LOCATION = "us-central1"
-DEFAULT_ENGINE_ID = "projects/938422762731/locations/us-central1/reasoningEngines/6082567044333568000"
+# Default Google Cloud settings loaded from configuration / environment
+_default_config = AgentRuntimeConfig()
+DEFAULT_PROJECT_ID = _default_config.project_id or os.environ.get("GCP_PROJECT_ID", "")
+DEFAULT_LOCATION = _default_config.location or os.environ.get("GCP_LOCATION", "us-central1")
+DEFAULT_ENGINE_ID = _default_config.reasoning_engine_id or os.environ.get("GCP_REASONING_ENGINE_ID", "")
 
 app = FastAPI(title="Google Cloud Agent Engine Streamer", version="1.0.0")
 
@@ -56,6 +57,17 @@ class StreamRequest(BaseModel):
     user_id: Optional[str] = "user-123"
     session_id: Optional[str] = None
     streaming_mode: Optional[str] = "sse"  # "sse" or "none"
+
+
+@app.get("/api/config")
+async def get_config():
+    """Returns current environment configuration for UI."""
+    return {
+        "project_id": DEFAULT_PROJECT_ID or "gcp-project-id",
+        "project_number": os.environ.get("GCP_PROJECT_NUMBER", ""),
+        "location": DEFAULT_LOCATION or "us-central1",
+        "engine_id": DEFAULT_ENGINE_ID,
+    }
 
 
 @app.get("/api/agents")

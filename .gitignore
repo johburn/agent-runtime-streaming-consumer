@@ -19,3 +19,5 @@ wheels/
 .idea/
 .vscode/
 *.swp
+
+deployment_metadata.json

@@ -180,9 +180,9 @@
             🌐 Proyecto GCP
           </label>
           <div class="space-y-1.5 text-xs text-slate-300 bg-surface-800 p-2.5 rounded-lg border border-slate-700">
-            <div class="flex justify-between"><span class="text-slate-400">Project:</span> <span class="font-mono text-slate-200">gke-service-project-081292</span></div>
-            <div class="flex justify-between"><span class="text-slate-400">Number:</span> <span class="font-mono text-slate-200">938422762731</span></div>
-            <div class="flex justify-between"><span class="text-slate-400">Región:</span> <span class="font-mono text-emerald-400">us-central1</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Project:</span> <span id="projectIdDisplay" class="font-mono text-slate-200">cargando...</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Number:</span> <span id="projectNumberDisplay" class="font-mono text-slate-200">—</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Región:</span> <span id="projectLocationDisplay" class="font-mono text-emerald-400">us-central1</span></div>
           </div>
         </div>
 
@@ -440,7 +440,24 @@
     agentSelect.addEventListener('change', updateAgentCard);
     refreshAgentsBtn.addEventListener('click', loadAgents);
 
+    // Fetch GCP Config
+    async function loadConfig() {
+      try {
+        const resp = await fetch('/api/config');
+        const cfg = await resp.json();
+        const pId = document.getElementById('projectIdDisplay');
+        const pNum = document.getElementById('projectNumberDisplay');
+        const pLoc = document.getElementById('projectLocationDisplay');
+        if (pId && cfg.project_id) pId.textContent = cfg.project_id;
+        if (pNum && cfg.project_number) pNum.textContent = cfg.project_number;
+        if (pLoc && cfg.location) pLoc.textContent = cfg.location;
+      } catch (e) {
+        console.warn('Could not load config:', e);
+      }
+    }
+
     // Initial load
+    loadConfig();
     loadAgents();
 
     // -------------------------------------------------------------

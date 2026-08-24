@@ -156,10 +156,10 @@ cp .env.example .env
 
 Ejemplo de configuración (`.env`):
 ```env
-GCP_PROJECT_ID=gke-service-project-081292
-GCP_PROJECT_NUMBER=938422762731
+GCP_PROJECT_ID=your-gcp-project-id
+GCP_PROJECT_NUMBER=123456789012
 GCP_LOCATION=us-central1
-GCP_REASONING_ENGINE_ID=projects/938422762731/locations/us-central1/reasoningEngines/6082567044333568000
+GCP_REASONING_ENGINE_ID=projects/123456789012/locations/us-central1/reasoningEngines/1234567890123456789
 CLIENT_MODE=api
 STREAMING_MODE=sse
 AGENT_USER_ID=user-123

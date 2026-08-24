@@ -1,5 +1,5 @@
 {
-  "remote_agent_runtime_id": "projects/938422762731/locations/us-central1/reasoningEngines/6082567044333568000",
+  "remote_agent_runtime_id": "projects/your-gcp-project-number/locations/us-central1/reasoningEngines/your-reasoning-engine-id",
   "deployment_target": "agent_runtime",
   "is_a2a": false
 }
