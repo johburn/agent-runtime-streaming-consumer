@@ -2,7 +2,7 @@
 
 Cliente Python y panel web interactivo de alto rendimiento para consumir agentes conversacionales desplegados en **Google Cloud Vertex AI Reasoning Engine (Agent Runtime / ADK)** mediante streaming continuo con **Server-Sent Events (SSE)** a través de la API REST `:streamQuery`.
 
-![Google Cloud Agent Engine Web Interface](docs/assets/ui_screenshot.jpg)
+![Google Cloud Agent Engine Web Interface](docs/assets/ui_screenshot.png)
 
 ---
 
@@ -215,7 +215,7 @@ uv run pytest
 ├── .env.example                      # Plantilla de variables de entorno
 ├── docs/
 │   └── assets/
-│       └── ui_screenshot.jpg         # Captura de pantalla de la interfaz
+│       └── ui_screenshot.png         # Captura de pantalla de la interfaz
 ├── src/
 │   ├── __init__.py                   # Exportaciones principales del módulo
 │   ├── auth.py                       # Proveedor de tokens OAuth2 / ADC
