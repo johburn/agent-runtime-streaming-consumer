@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-runtime-streaming-consumer"
+version = "0.1.0"
+description = "Python client, FastAPI Web UI & CLI for streaming responses from Google Cloud Agent Runtime / Agent Engine ADK agents via SSE"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.141.1",
+    "google-auth>=2.56.3",
+    "google-cloud-aiplatform>=1.165.1",
+    "httpx>=0.28.1",
+    "httpx-sse>=0.4.3",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.15.0",
+    "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
+    "rich>=15.0.0",
+    "sse-starlette>=3.4.8",
+    "uvicorn>=0.52.4",
+]
+
+[project.scripts]
+agent-stream = "agent_streaming_consumer.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "respx>=0.23.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_streaming_consumer"]

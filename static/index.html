@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es" class="dark h-full overflow-hidden">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Google Cloud Agent Engine — SSE Streamer</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#e8f0fe',
+              100: '#d2e3fc',
+              500: '#4285f4',
+              600: '#1a73e8',
+              700: '#174ea6',
+            },
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Marked for Markdown Rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    /* Strict window lock */
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* Custom scrollbar only for scrollable containers */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    .cursor-blink::after {
+      content: '▋';
+      display: inline-block;
+      vertical-align: middle;
+      color: #38bdf8;
+      animation: blink 0.8s infinite;
+      margin-left: 2px;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .prose p { margin-bottom: 0.75rem; line-height: 1.6; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose pre { background: #0f172a; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    .prose code { background: rgba(51, 65, 85, 0.5); padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-size: 0.875em; }
+    .prose pre code { background: transparent; padding: 0; }
+    .prose ul { list-style-type: disc; margin-left: 1.25rem; margin-bottom: 0.75rem; }
+    .prose ol { list-style-type: decimal; margin-left: 1.25rem; margin-bottom: 0.75rem; }
+  </style>
+</head>
+
+<body class="bg-surface-950 text-slate-100 h-full flex flex-col font-sans antialiased overflow-hidden selection:bg-brand-500 selection:text-white">
+
+  <!-- Top Navigation Header (Fixed height, shrink-0) -->
+  <header class="h-16 shrink-0 border-b border-slate-800 bg-surface-900/90 backdrop-blur z-30 px-4 sm:px-6 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-sky-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+        <i data-lucide="bot" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base sm:text-lg bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+          Google Cloud Agent Engine
+        </h1>
+        <div class="flex items-center space-x-2 text-xs text-slate-400">
+          <span id="headerModeDot" class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="headerModeLabel">Modo: <code class="text-sky-400 font-mono">SSE Streaming</code></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Agent Pill & Drawer Toggle -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <div id="headerAgentPill" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
+        <i data-lucide="cpu" class="w-3.5 h-3.5 text-brand-500"></i>
+        <span id="headerAgentName" class="font-medium text-slate-200">Cargando agente...</span>
+      </div>
+
+      <!-- Live Inspector Button -->
+      <button id="toggleInspectorBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium transition text-slate-300">
+        <i data-lucide="activity" class="w-4 h-4 text-amber-400"></i>
+        <span class="hidden sm:inline">Inspector SSE</span>
+        <span id="inspectorCountBadge" class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px]">0</span>
+      </button>
+
+      <!-- Sidebar Toggle Mobile -->
+      <button id="toggleSidebarBtn" class="sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Viewport (calc height 100% minus header, strictly overflow-hidden) -->
+  <div class="flex-1 flex overflow-hidden relative h-[calc(100dvh-4rem)]">
+
+    <!-- Left Sidebar: Configuration & Agent Selector (Independent scrolling) -->
+    <aside id="sidebar" class="w-80 shrink-0 bg-surface-900 border-r border-slate-800 flex flex-col h-full z-20 transition-transform duration-300 absolute sm:static inset-y-0 left-0 -translate-x-full sm:translate-x-0 overflow-hidden">
+      <div class="p-4 border-b border-slate-800 shrink-0 flex items-center justify-between">
+        <div class="flex items-center space-x-2 text-sm font-semibold text-slate-200">
+          <i data-lucide="sliders" class="w-4 h-4 text-brand-500"></i>
+          <span>Configuración</span>
+        </div>
+        <button id="refreshAgentsBtn" title="Recargar Agentes desde GCP" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-4 space-y-5">
+        
+        <!-- Agent Selection -->
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            🤖 Agente en Vertex AI
+          </label>
+          <select id="agentSelect" class="w-full bg-surface-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500 transition">
+            <option value="">Cargando agentes de GCP...</option>
+          </select>
+          
+          <!-- Agent Info Card -->
+          <div id="agentInfoCard" class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs space-y-1">
+            <div class="font-medium text-slate-200" id="agentCardName">-</div>
+            <div class="text-slate-400 text-[11px] line-clamp-2" id="agentCardDesc">-</div>
+            <div class="font-mono text-[10px] text-sky-400 truncate" id="agentCardId">-</div>
+          </div>
+        </div>
+
+        <!-- Streaming Mode Toggle Switch -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            ⚡ Modo de Transmisión
+          </label>
+          
+          <div class="p-3 rounded-xl bg-surface-800 border border-slate-700 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="zap" id="toggleIcon" class="w-4 h-4 text-emerald-400"></i>
+                <span id="toggleTitle" class="text-xs font-semibold text-slate-200">Streaming (SSE)</span>
+              </div>
+              
+              <!-- Switch input -->
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input id="streamingToggle" type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+              </label>
+            </div>
+
+            <p id="toggleDesc" class="text-[11px] text-slate-400 leading-snug">
+              ⚡ <strong>SSE Activo</strong>: El texto aparece en vivo palabra por palabra conforme el modelo lo genera.
+            </p>
+          </div>
+        </div>
+
+        <!-- Google Cloud Project Info -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            🌐 Proyecto GCP
+          </label>
+          <div class="space-y-1.5 text-xs text-slate-300 bg-surface-800 p-2.5 rounded-lg border border-slate-700">
+            <div class="flex justify-between"><span class="text-slate-400">Project:</span> <span class="font-mono text-slate-200">gke-service-project-081292</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Number:</span> <span class="font-mono text-slate-200">938422762731</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Región:</span> <span class="font-mono text-emerald-400">us-central1</span></div>
+          </div>
+        </div>
+
+        <!-- User & Session Controls -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            👤 Usuario & Sesión
+          </label>
+          <input id="userIdInput" type="text" value="user-123" placeholder="User ID" class="w-full bg-surface-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+          <button id="newSessionBtn" class="w-full flex items-center justify-center space-x-1.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium transition text-slate-300">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+            <span>Nueva Sesión</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="p-3 border-t border-slate-800 text-[11px] text-slate-500 text-center shrink-0">
+        Vertex AI Agent Runtime • REST API
+      </div>
+    </aside>
+
+    <!-- Main Center Content: Clean Streaming Chat (Dedicated Scroll Area) -->
+    <main class="flex-1 flex flex-col h-full bg-surface-950 overflow-hidden relative">
+      
+      <!-- Messages Feed Container: ONLY THIS SCROLLS DURING CONVERSATION -->
+      <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        
+        <!-- Welcome Card -->
+        <div class="max-w-3xl mx-auto p-5 rounded-2xl bg-gradient-to-b from-surface-900 to-surface-900/50 border border-slate-800 shadow-xl space-y-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
+              <i data-lucide="sparkles" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-slate-100 text-base">Consumidor de Streaming para Agent Engine</h2>
+              <p class="text-xs text-slate-400">Conectado a Google Cloud Vertex AI Reasoning Engine sobre Server-Sent Events (SSE)</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-surface-800/60 border border-slate-700/50 flex flex-col justify-between">
+              <span class="font-medium text-slate-200">⚡ Interruptor SSE / Batch</span>
+              <span class="text-[11px] text-slate-400 mt-1">Activa el toggle para streaming en vivo o desactívalo para modo batch.</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-surface-800/60 border border-slate-700/50 flex flex-col justify-between">
+              <span class="font-medium text-slate-200">📜 Inspector en Drawer</span>
+              <span class="text-[11px] text-slate-400 mt-1">Revisa los JSONs de herramientas y razonamiento en el panel lateral.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Chat Input Bar (shrink-0, stays anchored at bottom) -->
+      <div class="p-4 shrink-0 border-t border-slate-800/80 bg-surface-900/80 backdrop-blur z-10">
+        <div class="max-w-3xl mx-auto space-y-2">
+          
+          <!-- Example Prompts Pills -->
+          <div class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs text-slate-400">
+            <span class="text-[11px] text-slate-500 whitespace-nowrap">Ejemplos:</span>
+            <button class="example-prompt whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+              What is the weather in Tokyo and Paris?
+            </button>
+            <button class="example-prompt whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+              What tools do you have available?
+            </button>
+            <button class="example-prompt whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+              Explain Server-Sent Events in 2 paragraphs
+            </button>
+          </div>
+
+          <!-- Input Box -->
+          <form id="chatForm" class="flex items-center space-x-2 bg-surface-800 border border-slate-700 rounded-2xl p-1.5 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition shadow-lg">
+            <input id="promptInput" type="text" placeholder="Escribe tu consulta para el agente..." autocomplete="off" class="flex-1 bg-transparent px-3 py-2 text-sm text-slate-100 focus:outline-none placeholder:text-slate-500">
+            <button id="sendBtn" type="submit" class="p-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md">
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Right Drawer: Live Raw SSE Chunks Inspector (Independent scrolling) -->
+    <aside id="inspectorDrawer" class="w-96 shrink-0 bg-surface-900 border-l border-slate-800 flex flex-col h-full z-20 transition-transform duration-300 absolute sm:static inset-y-0 right-0 translate-x-full hidden overflow-hidden">
+      <div class="p-4 border-b border-slate-800 shrink-0 flex items-center justify-between bg-surface-900">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="activity" class="w-4 h-4 text-amber-400"></i>
+          <span class="text-sm font-semibold text-slate-200">Inspector SSE en Vivo</span>
+        </div>
+        <div class="flex items-center space-x-1">
+          <button id="clearInspectorBtn" title="Limpiar Inspector" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition text-xs">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="closeInspectorBtn" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Raw Chunks Log Feed: ONLY THIS SCROLLS INSIDE INSPECTOR -->
+      <div id="inspectorFeed" class="flex-1 overflow-y-auto p-3 space-y-2.5 font-mono text-[11px]">
+        <div class="text-center text-slate-500 py-8 font-sans text-xs">
+          Los paquetes SSE recibidos aparecerán aquí en tiempo real.
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Client JavaScript Logic -->
+  <script>
+    lucide.createIcons();
+
+    // DOM Elements
+    const agentSelect = document.getElementById('agentSelect');
+    const agentCardName = document.getElementById('agentCardName');
+    const agentCardDesc = document.getElementById('agentCardDesc');
+    const agentCardId = document.getElementById('agentCardId');
+    const headerAgentName = document.getElementById('headerAgentName');
+    const headerModeDot = document.getElementById('headerModeDot');
+    const headerModeLabel = document.getElementById('headerModeLabel');
+    const refreshAgentsBtn = document.getElementById('refreshAgentsBtn');
+    const streamingToggle = document.getElementById('streamingToggle');
+    const toggleIcon = document.getElementById('toggleIcon');
+    const toggleTitle = document.getElementById('toggleTitle');
+    const toggleDesc = document.getElementById('toggleDesc');
+    const chatForm = document.getElementById('chatForm');
+    const promptInput = document.getElementById('promptInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const userIdInput = document.getElementById('userIdInput');
+    const newSessionBtn = document.getElementById('newSessionBtn');
+    const inspectorDrawer = document.getElementById('inspectorDrawer');
+    const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
+    const closeInspectorBtn = document.getElementById('closeInspectorBtn');
+    const clearInspectorBtn = document.getElementById('clearInspectorBtn');
+    const inspectorFeed = document.getElementById('inspectorFeed');
+    const inspectorCountBadge = document.getElementById('inspectorCountBadge');
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const sidebar = document.getElementById('sidebar');
+
+    let availableAgents = [];
+    let activeSessionId = null;
+    let totalChunksReceived = 0;
+    let isInspectorOpen = false;
+
+    // Scroll helper specifically targeting ONLY messagesContainer
+    function scrollMessagesToBottom() {
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }
+
+    // Toggle Mode Handling
+    function updateToggleUI() {
+      const isSSE = streamingToggle.checked;
+      if (isSSE) {
+        toggleIcon.className = 'w-4 h-4 text-emerald-400';
+        toggleTitle.textContent = 'Streaming (SSE)';
+        toggleDesc.innerHTML = '⚡ <strong>SSE Activo</strong>: El texto aparece en vivo palabra por palabra conforme el modelo lo genera.';
+        headerModeDot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        headerModeLabel.innerHTML = 'Modo: <code class="text-sky-400 font-mono">SSE Streaming</code>';
+      } else {
+        toggleIcon.className = 'w-4 h-4 text-amber-400';
+        toggleTitle.textContent = 'Modo Batch (NONE)';
+        toggleDesc.innerHTML = '📦 <strong>Modo Batch</strong>: Pantalla en espera hasta recibir la respuesta completa de golpe.';
+        headerModeDot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500';
+        headerModeLabel.innerHTML = 'Modo: <code class="text-amber-400 font-mono">Batch (NONE)</code>';
+      }
+      lucide.createIcons();
+    }
+    streamingToggle.addEventListener('change', updateToggleUI);
+    updateToggleUI();
+
+    // Toggle Sidebar Mobile
+    toggleSidebarBtn?.addEventListener('click', () => {
+      sidebar.classList.toggle('-translate-x-full');
+    });
+
+    // Toggle Inspector Drawer
+    function toggleInspector(forceOpen = null) {
+      if (forceOpen !== null) isInspectorOpen = forceOpen;
+      else isInspectorOpen = !isInspectorOpen;
+      
+      if (isInspectorOpen) {
+        inspectorDrawer.classList.remove('hidden', 'translate-x-full');
+      } else {
+        inspectorDrawer.classList.add('hidden', 'translate-x-full');
+      }
+    }
+    toggleInspectorBtn.addEventListener('click', () => toggleInspector());
+    closeInspectorBtn.addEventListener('click', () => toggleInspector(false));
+    clearInspectorBtn.addEventListener('click', () => {
+      inspectorFeed.innerHTML = '<div class="text-center text-slate-500 py-8 font-sans text-xs">Inspector limpiado.</div>';
+      totalChunksReceived = 0;
+      inspectorCountBadge.textContent = '0';
+    });
+
+    // Example prompt buttons
+    document.querySelectorAll('.example-prompt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        promptInput.value = btn.textContent.trim();
+        promptInput.focus();
+      });
+    });
+
+    // New session
+    newSessionBtn.addEventListener('click', () => {
+      activeSessionId = null;
+      addSystemToast('Nueva sesión iniciada.');
+    });
+
+    function addSystemToast(msg) {
+      const toast = document.createElement('div');
+      toast.className = 'text-center text-xs text-slate-400 py-1 bg-surface-900/60 rounded-full w-fit mx-auto px-4 border border-slate-800 my-2';
+      toast.textContent = msg;
+      messagesContainer.appendChild(toast);
+      scrollMessagesToBottom();
+    }
+
+    // Fetch Agents from Backend
+    async function loadAgents() {
+      agentSelect.innerHTML = '<option>Cargando agentes de GCP...</option>';
+      try {
+        const resp = await fetch('/api/agents');
+        const data = await resp.json();
+        if (data.success && data.agents.length > 0) {
+          availableAgents = data.agents;
+          agentSelect.innerHTML = availableAgents.map((ag, idx) => `
+            <option value="${ag.id}" ${idx === 0 ? 'selected' : ''}>${ag.name} (${ag.short_id})</option>
+          `).join('');
+          updateAgentCard();
+        } else {
+          agentSelect.innerHTML = '<option value="">No se encontraron agentes</option>';
+        }
+      } catch (err) {
+        agentSelect.innerHTML = '<option value="">Error conectando a GCP</option>';
+      }
+    }
+
+    function updateAgentCard() {
+      const selectedId = agentSelect.value;
+      const ag = availableAgents.find(a => a.id === selectedId);
+      if (ag) {
+        agentCardName.textContent = ag.name;
+        agentCardDesc.textContent = ag.description || 'Sin descripción';
+        agentCardId.textContent = ag.id;
+        headerAgentName.textContent = ag.name;
+      }
+    }
+
+    agentSelect.addEventListener('change', updateAgentCard);
+    refreshAgentsBtn.addEventListener('click', loadAgents);
+
+    // Initial load
+    loadAgents();
+
+    // -------------------------------------------------------------
+    // Chat & Streaming Logic
+    // -------------------------------------------------------------
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const prompt = promptInput.value.trim();
+      if (!prompt) return;
+
+      const engineId = agentSelect.value;
+      const userId = userIdInput.value.trim() || 'user-123';
+      const isSSE = streamingToggle.checked;
+      const mode = isSSE ? 'sse' : 'none';
+
+      promptInput.value = '';
+      promptInput.disabled = true;
+      sendBtn.disabled = true;
+
+      // Append User Message
+      appendUserMessage(prompt);
+
+      // Execute Stream or Batch
+      await executeQuery(prompt, engineId, userId, mode);
+
+      promptInput.disabled = false;
+      sendBtn.disabled = false;
+      promptInput.focus();
+    });
+
+    function appendUserMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'flex justify-end max-w-3xl mx-auto';
+      div.innerHTML = `
+        <div class="bg-brand-600 text-white px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-xl text-sm shadow-md">
+          ${escapeHtml(text)}
+        </div>
+      `;
+      messagesContainer.appendChild(div);
+      scrollMessagesToBottom();
+    }
+
+    async function executeQuery(prompt, engineId, userId, mode) {
+      const isSSE = mode === 'sse';
+      const agentCard = document.createElement('div');
+      agentCard.className = 'max-w-3xl mx-auto flex space-x-3 text-sm';
+      agentCard.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-surface-800 border border-slate-700 flex items-center justify-center shrink-0 text-brand-400 mt-1 shadow">
+          <i data-lucide="bot" class="w-4 h-4"></i>
+        </div>
+        <div class="flex-1 space-y-2">
+          
+          <!-- Subtle Status Indicator (Tool / Reasoning) -->
+          <div class="status-indicator ${isSSE ? 'hidden' : ''} flex items-center space-x-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg w-fit">
+            <i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i>
+            <span class="status-text font-medium">${isSSE ? 'Procesando...' : 'Esperando respuesta completa en batch...'}</span>
+          </div>
+
+          <!-- Main Clean Text Bubble -->
+          <div class="bg-surface-900 border border-slate-800 rounded-2xl rounded-tl-sm p-4 text-slate-200 shadow-lg relative">
+            <div class="stream-text prose prose-invert max-w-none text-sm leading-relaxed ${isSSE ? 'cursor-blink' : ''}"></div>
+            
+            <!-- Latency Footer -->
+            <div class="latency-footer hidden mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center space-x-1.5">
+                <span class="inline-block w-2 h-2 rounded-full ${isSSE ? 'bg-emerald-400' : 'bg-amber-400'}"></span>
+                <span class="ttft-label">Primer token (TTFT): -</span>
+              </span>
+              <span class="total-label text-[11px] text-slate-500">-</span>
+            </div>
+          </div>
+
+        </div>
+      `;
+      messagesContainer.appendChild(agentCard);
+      lucide.createIcons();
+      scrollMessagesToBottom();
+
+      const statusIndicator = agentCard.querySelector('.status-indicator');
+      const statusText = agentCard.querySelector('.status-text');
+      const streamTextEl = agentCard.querySelector('.stream-text');
+      const latencyFooter = agentCard.querySelector('.latency-footer');
+      const ttftLabel = agentCard.querySelector('.ttft-label');
+      const totalLabel = agentCard.querySelector('.total-label');
+
+      let accumulated = '';
+      let ttftVal = null;
+      const t0 = performance.now();
+
+      try {
+        const resp = await fetch('/api/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: prompt,
+            engine_id: engineId,
+            user_id: userId,
+            session_id: activeSessionId,
+            streaming_mode: mode,
+          })
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const rawJson = line.substring(6).trim();
+              if (!rawJson) continue;
+
+              try {
+                const data = JSON.parse(rawJson);
+                appendInspectorLog(data);
+
+                if (data.event === 'text') {
+                  statusIndicator.classList.add('hidden');
+
+                  if (ttftVal === null) {
+                    ttftVal = ((performance.now() - t0) / 1000).toFixed(3);
+                    ttftLabel.textContent = isSSE ? `Primer token (TTFT): ${ttftVal}s` : `Respuesta recibida en: ${ttftVal}s`;
+                    latencyFooter.classList.remove('hidden');
+                  }
+                  accumulated += data.text;
+                  streamTextEl.innerHTML = marked.parse(accumulated);
+                } else if (data.event === 'tool_call') {
+                  statusText.textContent = `Consultando herramienta: ${data.tool_name}...`;
+                  statusIndicator.classList.remove('hidden');
+                } else if (data.event === 'tool_result') {
+                  statusText.textContent = `Datos recibidos de ${data.tool_name || 'herramienta'}. Generando respuesta...`;
+                } else if (data.event === 'thought') {
+                  statusText.textContent = `Pensando...`;
+                  statusIndicator.classList.remove('hidden');
+                } else if (data.event === 'completed') {
+                  statusIndicator.classList.add('hidden');
+                  const total = data.total_time ? data.total_time.toFixed(3) : ((performance.now() - t0) / 1000).toFixed(3);
+                  totalLabel.textContent = `Total: ${total}s | ${data.total_chunks || 0} chunks`;
+                }
+              } catch (e) {
+                console.error("JSON parse error:", e);
+              }
+              scrollMessagesToBottom();
+            }
+          }
+        }
+
+      } catch (err) {
+        streamTextEl.innerHTML = `<span class="text-red-400">Error: ${err.message}</span>`;
+      } finally {
+        streamTextEl.classList.remove('cursor-blink');
+        statusIndicator.classList.add('hidden');
+        latencyFooter.classList.remove('hidden');
+        scrollMessagesToBottom();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // Helper: Inspector Feed
+    // -------------------------------------------------------------
+    function appendInspectorLog(data) {
+      totalChunksReceived++;
+      inspectorCountBadge.textContent = totalChunksReceived;
+
+      if (totalChunksReceived === 1) {
+        inspectorFeed.innerHTML = '';
+      }
+
+      const card = document.createElement('div');
+      card.className = 'p-2 rounded-lg bg-surface-800/90 border border-slate-700/80 space-y-1';
+      
+      const badgeColors = {
+        text: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+        tool_call: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        tool_result: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        thought: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        completed: 'bg-slate-700 text-slate-300 border-slate-600',
+        error: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+      };
+
+      const color = badgeColors[data.event] || 'bg-slate-800 text-slate-300';
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold border ${color}">${(data.event || 'chunk').toUpperCase()}</span>
+          <span class="text-[10px] text-slate-500">#${data.chunk_num || totalChunksReceived} • ${data.timestamp || ''}</span>
+        </div>
+        <pre class="text-[10px] text-slate-300 overflow-x-auto max-h-32 bg-surface-950 p-1.5 rounded">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+      `;
+
+      inspectorFeed.insertBefore(card, inspectorFeed.firstChild);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
